@@ -1,0 +1,577 @@
+---
+title: "Early Prediction of Infection Using Vital Signs and Demographics Using Machine Learning"
+subtitle: "BMIN5030 Final Project"
+author: "Jonathan Chong Kai Liew"
+format: html
+editor: visual
+number-sections: true
+embed-resources: true
+---
+
+------------------------------------------------------------------------
+
+## Overview {#sec-overview}
+
+### Written by:
+
+Jonathan Chong Kai [Liew]{.underline} (18656085)[\
+]{.underline}Masters of Biomedical Informatics student
+
+### **Advisors:**
+
+Fuchiang (Rich) Tsui, PhD, FAMIA, IEEE Senior Member\
+Dokyoon Kim, PhD
+
+### **Acknowledgements:**
+
+This project would not have been possible without the advice, support and guidiance from Professors Anurag Verma and Brielin Brown, and the teaching assistants, Chloe and Max over the past few months; all whom have taught me everything I know about R and coding.
+
+## Introduction {#sec-introduction}
+
+Sepsis is one of the leading causes of mortality in patients in Emergency Care, affecting millions globally each year and pose high mortality[\[1,2\]](https://paperpile.com/c/wkSzRD/MMut+iP8S). A life-threatening organ dysfunction caused by the either viral or bacterial infection of a host, mortality rates dependent on severity and timeliness of treatment[\[3\]](https://paperpile.com/c/wkSzRD/g6Es). Hence, any delay in the identification and treatment significantly increases mortality risk, with every additional hour of delayed intervention increasing mortality by 4-9%[\[4\]](https://paperpile.com/c/wkSzRD/jZem).
+
+Current clinical practices in intensive care relies on accessible, continuous monitoring of vital signs of physiological stress such as hemodynamic data, respiratory rate, blood pressure, temperature, and oxygen saturation[\[3\]](https://paperpile.com/c/wkSzRD/g6Es). All these allow sepsis to be scored using assessment criteria such as the qSOFA (quick Sequential Organ Failure Assessment)[\[3\]](https://paperpile.com/c/wkSzRD/g6Es). However, despite the accessibility and clinical validity of these vital signs and scoring techniques, they are prognostic and not diagnostic and do not provide a real-time, "comprehensive view of the real biological processes happening at a cellular or molecular level internally"[\[5,6\]](https://paperpile.com/c/wkSzRD/05lr+Vzns). Hence, ordering lab results are a key portion of the clinical workflow of diagnosing sepsis, identifying the presence of infection in the earliest stages could enable prediction and prevention of sepsis progression before organ dysfunction occurs[\[4\]](https://paperpile.com/c/wkSzRD/jZem). 
+
+Culture ordering, the binary decision to investigate for infection through microbiological sampling, represents a clinician's judgment that infection is suspected based on the clinical presentation and vital signs at a present moment[\[7\]](https://paperpile.com/c/wkSzRD/3uCc). This binary outcome (culture ordered or not) captures the clinical suspicion threshold: a point at which observable physiological abnormalities trigger investigation for infection[\[4,7\]](https://paperpile.com/c/wkSzRD/3uCc+jZem). The actual results of those cultures (positive, negative, contaminated, or mixed) emerge hours to days later and are clinically irrelevant to the early prediction task[\[7\]](https://paperpile.com/c/wkSzRD/3uCc). This "signal of clinical suspicion", more actionable and immediate than confirming specific pathogens or laboratory abnormalities, occurs after critical decision points have been passed[\[8\]](https://paperpile.com/c/wkSzRD/IGOY). Therefore, the binary culture ordering outcome provides sufficient information to address the research question, whether early vital signs and demographics can predict a clinician's assessment that infection investigation is needed.
+
+Whilst traditional approaches to sepsis detection rely on establishing diagnostic certainty through laboratory confirmation (eg. blood cultures) or clinical deterioration before intervention is initiated[\[8,9\]](https://paperpile.com/c/wkSzRD/IGOY+UHzY), this reactive approach inherently delays treatment until organ dysfunction is already evident. Current literature has extensively evaluated machine learning approaches to predict sepsis outcomes, predominantly focusing on sepsis diagnosis (yes/no classification) and mortality prediction[\[1,5,7\]](https://paperpile.com/c/wkSzRD/MMut+05lr+3uCc). However, these approaches have limited clinical utility in any stage of infection, bringing little value to the overall clinical workflow[\[10\]](https://paperpile.com/c/wkSzRD/hkc1). Critically, this leaves a paramount clinical need unaddressed, resulting in the low adoption of existing sepsis models.
+
+In contrast, the clinician's real-time decision to order cultures represents an actionable, objective marker of clinical suspicion that emerges at the precise moment when clinical judgment determines that infection investigation is warranted. This decision point occurs before laboratory confirmation, before sepsis diagnosis codes are assigned, and before mortality risk stratification becomes relevant. Hence, by predicting culture ordering directly, an inherent clinical need is solved, by enabling earlier identification of patients requiring investigation, supporting faster diagnostic ordering, and facilitating earlier intervention before clinical deterioration. By focusing on culture ordering, a clinical proxy for infection suspicion, it could directly address the question of early infection detection without requiring retrospective ICD-9/ICD-10 coding or bacteriological confirmation. This approach avoids the limitations of working backward from sepsis diagnoses, which suffer from heterogeneous coding practices, variable clinical definitions, and definitional lag, to infer infection status[\[11\]](https://paperpile.com/c/wkSzRD/wen0). This method represents a fundamental paradigm shift toward the proactive, early identification of at-risk patients using readily available vital signs, enabling earlier clinical suspicion of infection, faster ordering of diagnostic investigations, and ultimately earlier intervention before organ dysfunction (or septic shock) occurs.
+
+Hence, this study seeks to develop a machine learning model to predict whether clinicians will order cultures based on vital signs and demographics observed within the first 6 hours of ICU admission; using only readily available parameters such as heart rate, respiratory rate, blood pressure, temperature, oxygen saturation, age, gender, and admission type.
+
+## Methods {#sec-methods}
+
+### Data Source and Study Population
+
+Data was obtained from the MIMIC-III clinical database. This study included adult patients (≥18 years old) with ICU admissions and length of stay ≥1 day. Patients with missing vital signs data in the first 6 hours of ICU admission were excluded.
+
+### Outcome Variable
+
+The primary outcome was culture ordered within 24 hours of ICU admission (yes/no). Culture orders were identified from the MICROBIOLOGYEVENTS table and linked to ICU admissions using admission timestamps.
+
+### Feature Extraction
+
+Vital signs were extracted from the CHARTEVENTS table for the first 6 hours of ICU admission. Vital signs included heart rate, respiratory rate, systolic and diastolic blood pressure, temperature, and oxygen saturation. For each vital sign, this study calculated the mean value across all measurements within the 6-hour window.
+
+Patient demographics (age at admission, gender, admission type, and ethnicity) were extracted from the ADMISSIONS and PATIENTS tables.
+
+### Data Preparation
+
+The cohort was randomly split into training (80%) and testing (20%) sets, stratified by outcome. Categorical variables (gender, admission type, ethnicity) were converted to factors. No missing data imputation was performed; patients with missing values were excluded from analysis.
+
+### Statistical Analysis
+
+This study developed two logistic regression models: (1) a simple model with heart rate and respiratory rate only, and (2) a full model including all features. Models were fit using the glm engine in R (tidymodels framework). In addition, a random forest model was constructed too.
+
+Model performance was evaluated on the test set using the area under the receiver operating characteristic curve (AUROC), sensitivity, specificity, accuracy, and precision. Cross-validation (10-fold) was performed on the training set to assess model generalizability.
+
+## Results {#sec-results}
+
+### Importing libraries
+
+```{r}
+library("ggplot2")
+library("cowplot")
+library("modelsummary")
+library("tidymodels")
+library("dotwhisker")
+library("parsnip")
+library("randomForest")
+library("kernlab")
+library("glmnet")
+library("vip")
+library("tidyverse")
+library("data.table")
+```
+
+### Importing Datasets
+
+```{r}
+# Import demographics
+# Load ADMISSIONS
+admission_df <- read.csv("/Users/jonathan/Documents/Upenn/Y1S1 - Fall/BMIN 5030 (Data Science for Biomedical Informatics)/Final Project/mimic-iii-clinical-database-1.4/ADMISSIONS.csv")
+# Only load specific columns
+admission <- admission_df[c("HADM_ID", "SUBJECT_ID", "ADMITTIME", "ADMISSION_TYPE", "ETHNICITY")]
+
+# Load PATIENTS
+patients_df <- read.csv("/Users/jonathan/Documents/Upenn/Y1S1 - Fall/BMIN 5030 (Data Science for Biomedical Informatics)/Final Project/mimic-iii-clinical-database-1.4/PATIENTS.csv")
+# Only load specific columns
+patients <- patients_df[c("SUBJECT_ID", "GENDER", "DOB")]
+
+# Load ICUSTAYS
+icustays_df <- read.csv("/Users/jonathan/Documents/Upenn/Y1S1 - Fall/BMIN 5030 (Data Science for Biomedical Informatics)/Final Project/mimic-iii-clinical-database-1.4/ICUSTAYS.csv")
+# Only load specific columns
+icustays <- icustays_df[c("SUBJECT_ID", "HADM_ID", "ICUSTAY_ID", "INTIME", "OUTTIME", "LOS")]
+icustays <- icustays[icustays$LOS >= 1, ] # Limit LOS to less than a day
+```
+
+```{r}
+# Import validation 
+# Load MICROBIOLOGYEVENTS
+microbiology_df <- read.csv("/Users/jonathan/Documents/Upenn/Y1S1 - Fall/BMIN 5030 (Data Science for Biomedical Informatics)/Final Project/mimic-iii-clinical-database-1.4/MICROBIOLOGYEVENTS.csv")
+# Only load specific columns
+microbiology <- microbiology_df[c("HADM_ID", "CHARTTIME", "SPEC_TYPE_DESC", "ORG_NAME")]
+```
+
+```{r}
+# Import continuous data
+# Load CHARTEVENTS
+chartevents <- fread("/Users/jonathan/Documents/Upenn/Y1S1 - Fall/BMIN 5030 (Data Science for Biomedical Informatics)/Final Project/mimic-iii-clinical-database-1.4/CHARTEVENTS.csv.gz")
+```
+
+### Cohort Creation and Cleaning
+
+```{r}
+# Create cohort
+cohort_subject <- merge(icustays, patients, by = "SUBJECT_ID")
+cohort_df <- merge(cohort_subject, admission, by = c("SUBJECT_ID", "HADM_ID"))
+```
+
+```{r}
+# Calculate age
+cohort_df$INTIME <- as.POSIXct(cohort_df$INTIME, format = "%Y-%m-%d %H:%M:%S")
+cohort_df$DOB <- as.POSIXct(cohort_df$DOB, format = "%Y-%m-%d %H:%M:%S")
+cohort_df$AGE <- as.numeric(difftime(cohort_df$INTIME, cohort_df$DOB, units = "days")) / 365.25
+cohort_df$AGE <- ifelse(cohort_df$AGE > 89, 91.4, cohort_df$AGE)
+
+# Filter adults
+cohort <- cohort_df[cohort_df$AGE >= 18, ]
+cohort <- cohort[c("SUBJECT_ID", "HADM_ID", "ICUSTAY_ID", "INTIME", "OUTTIME", "ADMITTIME", "LOS", "AGE", "GENDER", "ADMISSION_TYPE", "ETHNICITY")]
+cohort <- cohort |> drop_na()
+```
+
+```{r}
+# OUTCOME VARIABLES - CULTURE ORDERED
+microbiology <- microbiology |>
+  mutate(CHARTTIME_clean = substr(CHARTTIME, 1, 19))
+
+cohort_clean <- cohort |>
+  mutate(INTIME_clean = substr(INTIME, 1, 19),
+         INTIME_posix = as.POSIXct(INTIME_clean, format = "%Y-%m-%d %H:%M:%S"))
+
+microbiology <- microbiology |>
+  left_join(cohort_clean[c("HADM_ID", "ICUSTAY_ID", "INTIME_posix")],
+            by = "HADM_ID",
+            relationship = "many-to-many") |>
+  mutate(
+    CHARTTIME_posix = as.POSIXct(CHARTTIME_clean, format = "%Y-%m-%d %H:%M:%S"),
+    hours_since_admission = as.numeric(difftime(CHARTTIME_posix, INTIME_posix, units = "hours")))
+
+culture_24h <- microbiology |>
+  filter(hours_since_admission >= 0, hours_since_admission <= 24) |>
+  distinct(ICUSTAY_ID) |>
+  mutate(culture_ordered_24h = 1)
+
+culture_24_72h <- microbiology |>
+  filter(hours_since_admission > 24, hours_since_admission <= 72) |>
+  distinct(ICUSTAY_ID) |>
+  mutate(culture_ordered_24_72h = 1)
+```
+
+### Feature Engineering
+
+```{r}
+# Use intime to filter 6 hour window
+icustays_times <- read_csv("/Users/jonathan/Documents/Upenn/Y1S1 - Fall/BMIN 5030 (Data Science for Biomedical Informatics)/Final Project/mimic-iii-clinical-database-1.4/ICUSTAYS.csv.gz", col_select = c("ICUSTAY_ID", "INTIME"))
+
+# Create tibble to match itemid with vital type in mimic iii dataset
+vital_itemids <- tibble(
+  ITEMID = c(223761, 223762, 220045, 220050, 220051, 220210, 220277, 224689),
+  VITAL_NAME = c("TEMPERATURE_F", "TEMPERATURE_C", "HEART_RATE", "SYSTOLIC_BP", "DIASTOLIC_BP", "RESPIRATORY_RATE", "O2_SATURATION", "TEMPERATURE_ALT"))
+
+# Extract and aggregate vital signs
+vital_signs_6h <- chartevents |>
+  filter(ITEMID %in% vital_itemids$ITEMID) |>  # Keep ONLY vital sign measurements
+  filter(!is.na(VALUENUM)) |> # Filter 2: Remove missing values
+  left_join(icustays_times, by = "ICUSTAY_ID") |> # Add intime (when patient first enters ICU)
+  mutate(hours_since_icu = as.numeric(difftime(CHARTTIME, INTIME, units = "hours"))) |> #obtain time since patient was first admitted
+  filter(hours_since_icu >= 0 & hours_since_icu <= 6) |> # obtain first 6 hours post-admission
+  left_join(vital_itemids, by = "ITEMID") |> # merge everything by item
+  select(ICUSTAY_ID, VITAL_NAME, VALUENUM) |>  # keeping these 3 columns
+  group_by(ICUSTAY_ID, VITAL_NAME) |>
+  summarise(VALUENUM = mean(VALUENUM, na.rm = TRUE), .groups = "drop") |>
+  pivot_wider(id_cols = ICUSTAY_ID, names_from = VITAL_NAME, values_from = VALUENUM) |>
+  filter(  # filter vitals to remove outliers
+    HEART_RATE >= 30 & HEART_RATE <= 200,
+    RESPIRATORY_RATE >= 5 & RESPIRATORY_RATE <= 60,
+    SYSTOLIC_BP >= 50 & SYSTOLIC_BP <= 250,
+    DIASTOLIC_BP >= 10 & DIASTOLIC_BP <= 200,
+    TEMPERATURE_C >= 35 & TEMPERATURE_C <= 41,
+    O2_SATURATION >= 30 & O2_SATURATION <= 100
+    )
+
+# Filter ethnicity of patients
+cohort$ETHNICITY <- case_when(
+  grepl("WHITE", cohort$ETHNICITY, ignore.case = TRUE) ~ "White",
+  grepl("BLACK|AFRICAN", cohort$ETHNICITY, ignore.case = TRUE) ~ "Black",
+  grepl("HISPANIC|LATINO", cohort$ETHNICITY, ignore.case = TRUE) ~ "Hispanic",
+  grepl("ASIAN", cohort$ETHNICITY, ignore.case = TRUE) ~ "Asian",
+  TRUE ~ "Other"
+)
+```
+
+### Merge data into single cohort 
+
+```{r}
+merged_cohort <- cohort |>
+  left_join(culture_24h, by = "ICUSTAY_ID") |>
+  left_join(culture_24_72h, by = "ICUSTAY_ID") |>
+  left_join(vital_signs_6h, by = "ICUSTAY_ID") |>
+  mutate(
+    culture_ordered_24h = ifelse(is.na(culture_ordered_24h), 0, 1),
+    culture_ordered_24_72h = ifelse(is.na(culture_ordered_24_72h), 0, 1)
+  ) |>
+  drop_na() |> # remove any na
+  filter(ADMISSION_TYPE != "NEWBORN") # remove urgent care
+
+final_cohort <- merged_cohort |>
+  select(ICUSTAY_ID, AGE, GENDER, ADMISSION_TYPE, ETHNICITY, LOS, HEART_RATE, RESPIRATORY_RATE, SYSTOLIC_BP, DIASTOLIC_BP, TEMPERATURE_F, TEMPERATURE_C, O2_SATURATION, culture_ordered_24h, culture_ordered_24_72h) |>
+  drop_na() |>
+  mutate(
+    GENDER = factor(GENDER),
+    ADMISSION_TYPE = factor(ADMISSION_TYPE),
+    ETHNICITY = factor(ETHNICITY),
+    culture_ordered_24h = factor(culture_ordered_24h, levels = c(0, 1)),
+    culture_ordered_24_72h = factor(culture_ordered_24_72h, levels = c(0, 1))
+  )
+```
+
+### Data visualization and cleaning
+
+#### Demographic data
+
+```{r}
+# Admission Type Distribution
+ggplot(admission, aes(x = ADMISSION_TYPE)) +
+  geom_bar(fill = "steelblue", alpha = 0.7) +
+  labs(title = "Distribution of Admission Types",
+       x = "Admission Type",
+       y = "Count") +
+  theme_bw()
+```
+
+```{r}
+# Gender distribution
+ggplot(final_cohort, aes(x = GENDER)) +
+  geom_bar(fill = "purple", alpha = 0.7) +
+  labs(title = "Distribution of Gender",
+       x = "Gender",
+       y = "Count") +
+  theme_bw()
+```
+
+```{r}
+# Age distribution
+ggplot(final_cohort, aes(x = AGE)) +
+  geom_histogram(aes(y = after_stat(density)),
+                 breaks = seq(0, 120, 5),
+                 fill = "darkblue", alpha = 0.7) +
+  geom_density(color = "red", linewidth = 1.5) +
+  labs(title = "Age Distribution",
+       x = "Age (years)",
+       y = "Density") +
+  xlim(0, 110) +
+  theme_bw()
+```
+
+```{r}
+# LOS distribution, noting that LOS > 1 was removed 
+ggplot(final_cohort, aes(x = LOS)) +
+  geom_histogram(aes(y = after_stat(density)),
+                 breaks = seq(0, max(final_cohort$LOS, na.rm = TRUE), 1),
+                 fill = "darkorange", alpha = 0.7) +
+  geom_density(color = "red", linewidth = 1.5) +
+  xlim(0, 30) +
+  labs(title = "Length of Stay Distribution (0-30 days)",
+       x = "Length of Stay (days)",
+       y = "Density") +
+  theme_bw()
+```
+
+#### Chartevents
+
+```{r}
+# Summarised histograms for vital signs (6-panel grid)
+# HR
+p1 <- ggplot(vital_signs_6h, aes(x = HEART_RATE)) +
+  geom_histogram(bins = 30, fill = "blue", alpha = 0.7) +
+  labs(title = "Heart Rate", x = "bpm", y = "Count") +
+  theme_bw()
+
+# RR
+p2 <- ggplot(vital_signs_6h, aes(x = RESPIRATORY_RATE)) +
+  geom_histogram(fill = "darkgreen", alpha = 0.7) +
+  labs(title = "Respiratory Rate", x = "breaths/min", y = "Count") +
+  theme_bw()
+
+#SBP
+p3 <- ggplot(vital_signs_6h, aes(x = SYSTOLIC_BP)) +
+  geom_histogram(bins = 30, fill = "darkblue", alpha = 0.7) +
+  labs(title = "Systolic BP", x = "mmHg", y = "Count") +
+  theme_bw()
+
+#DBP
+p4 <- ggplot(vital_signs_6h, aes(x = DIASTOLIC_BP)) +
+  geom_histogram(fill = "darkred", alpha = 0.7) +
+  labs(title = "Diastolic BP", x = "mmHg", y = "Count") +
+  theme_bw()
+
+#TEMP, using deg C
+p5 <- ggplot(vital_signs_6h, aes(x = TEMPERATURE_C)) +
+  geom_histogram(fill = "darkorange", alpha = 0.7) +
+  labs(title = "Temperature", x = "°C", y = "Count") +
+  theme_bw()
+
+#o2 sat
+p6 <- ggplot(vital_signs_6h, aes(x = O2_SATURATION)) +
+  geom_histogram(fill = "purple", alpha = 0.7) +
+  labs(title = "O2 Saturation", x = "%", y = "Count") +
+  theme_bw()
+
+# Combine all 6 plots into single plot
+vital_distributions <- plot_grid(p1, p2, p3, p4, p5, p6, labels = "AUTO")
+vital_distributions
+```
+
+```{r}
+ggplot(final_cohort, aes(x = culture_ordered_24h, fill = culture_ordered_24h)) +
+  geom_bar(alpha = 0.8) +
+  labs(title = "Culture Ordered Within 24 Hours",
+       x = "Culture Ordered",
+       y = "Count") +
+  theme_bw() 
+
+ggplot(final_cohort, aes(x = culture_ordered_24_72h, fill = culture_ordered_24_72h)) +
+  geom_bar(alpha = 0.8) +
+  labs(title = "Culture Ordered 24-72 Hours Post-Admission",
+       x = "Culture Ordered",
+       y = "Count") +
+  theme_bw() 
+```
+
+### Data Preparation
+
+```{r}
+# Data Prepation
+data_for_model <- final_cohort |>
+  select(-ICUSTAY_ID, -TEMPERATURE_F) |>
+  mutate(
+    culture_ordered_24h = factor(culture_ordered_24h, levels = c(0, 1),
+                                 labels = c("no", "yes"))
+  )
+```
+
+```{r}
+# Data split
+set.seed(1234)
+culture_split <- initial_split(data_for_model,
+                               strata = culture_ordered_24h,
+                               prop = 0.80) # optimize training data
+culture_split
+
+train_data <- training(culture_split)
+test_data <- testing(culture_split)
+train_data
+```
+
+### Model Creation
+
+#### Model 1: Logistic Regression (HR + RR)
+
+```{r}
+# Model 1: Logistic Regression (HR + RR)
+lr_cls_spec <- logistic_reg() |>
+  set_engine("glm")
+
+simple_lr_fit <- lr_cls_spec |>
+  fit(culture_ordered_24h ~ HEART_RATE + RESPIRATORY_RATE, data = train_data)
+
+simple_lr_fit
+
+tidy(simple_lr_fit)
+
+tidy(simple_lr_fit) |>
+  filter(term != "(Intercept)") |>
+  dwplot(dot_args = list(size = 2, color = "black"),
+         whisker_args = list(color = "black"),
+         vline = geom_vline(xintercept = 0, colour = "grey50", linetype = 2)) +
+  theme_bw() +
+  labs(title = "Model 1 Coefficients")
+```
+
+#### Model 2: Logistic Regression (All features)
+
+```{r}
+# Model 2: Logistic Regression (All significant features)
+full_lr_fit <- lr_cls_spec |>
+  fit(culture_ordered_24h ~ ., data = train_data)
+
+full_lr_fit
+
+tidy(full_lr_fit)
+
+tidy(full_lr_fit) |>
+  filter(term != "(Intercept)") |>
+  dwplot(dot_args = list(size = 2, color = "black"),
+         whisker_args = list(color = "black"),
+         vline = geom_vline(xintercept = 0, colour = "grey50", linetype = 2)) +
+  theme_bw() +
+  labs(title = "Model 2 Coefficients")
+```
+
+```{r}
+# Parsnip
+simple_lr_pred_test <- bind_cols(
+  truth = test_data$culture_ordered_24h,
+  predict(simple_lr_fit, test_data),
+  predict(simple_lr_fit, test_data, type = "prob")
+)
+simple_lr_pred_test
+
+full_lr_pred_test <- bind_cols(
+  truth = test_data$culture_ordered_24h,
+  predict(full_lr_fit, test_data),
+  predict(full_lr_fit, test_data, type = "prob")
+)
+full_lr_pred_test
+```
+
+```{r}
+# ROC CURVES - TEST DATA
+autoplot(roc_curve(simple_lr_pred_test,
+                   truth,
+                   .pred_no))
+
+autoplot(roc_curve(full_lr_pred_test,
+                   truth,
+                   .pred_no))
+
+metrics(simple_lr_pred_test, truth, .pred_class, .pred_no)
+
+metrics(full_lr_pred_test, truth, .pred_class, .pred_no)
+```
+
+### Cross Validation
+
+```{r}
+# Cross Validation
+set.seed(1234)
+culture_folds <- vfold_cv(train_data, v = 10)
+culture_folds
+
+glm_wf <- workflow() |>
+  add_model(lr_cls_spec) |>
+  add_formula(culture_ordered_24h ~ .)
+
+glm_fit_cv <-
+  glm_wf |>
+  fit_resamples(culture_folds, control = control_resamples(save_pred = TRUE))
+glm_fit_cv
+
+culture_glm_cv_preds <- collect_predictions(glm_fit_cv)
+
+autoplot(roc_curve(culture_glm_cv_preds,
+                   culture_ordered_24h,
+                   .pred_no))
+
+collect_metrics(glm_fit_cv)
+
+culture_glm_cv_preds |>
+  group_by(id) |>
+  roc_auc(culture_ordered_24h, .pred_no)
+
+autoplot(roc_curve(culture_glm_cv_preds,
+                   culture_ordered_24h,
+                   .pred_yes))
+```
+
+### Model 3: Random Forest
+
+```{r}
+# Model 3: Random forest model
+rf_spec <- rand_forest() |>
+  set_engine("randomForest") |>
+  set_mode("classification")
+
+rf_fit <- rf_spec |>
+  fit(culture_ordered_24h ~ ., data = train_data)
+
+rf_fit
+
+rf_pred_test <- bind_cols(
+  truth = test_data$culture_ordered_24h,
+  predict(rf_fit, test_data),
+  predict(rf_fit, test_data, type = "prob")
+)
+rf_pred_test
+
+autoplot(roc_curve(rf_pred_test,
+                   truth,
+                   .pred_no))
+
+metrics(rf_pred_test, truth, .pred_class, .pred_no)
+
+set.seed(1234)
+rf_wf <- workflow() |>
+  add_model(rf_spec) |>
+  add_formula(culture_ordered_24h ~ .)
+
+rf_fit_cv <-
+  rf_wf |>
+  fit_resamples(culture_folds, control = control_resamples(save_pred = TRUE))
+rf_fit_cv
+
+rf_cv_preds <- collect_predictions(rf_fit_cv)
+
+autoplot(roc_curve(rf_cv_preds,
+                   culture_ordered_24h,
+                   .pred_no))
+
+collect_metrics(rf_fit_cv)
+```
+
+### Visualizing Key Features
+
+```{r}
+# Visualise importance values
+vip(rf_fit)
+```
+
+## Limitations
+
+Our study has several important limitations. First, this study only used a small sample size limited by computational constraints, ICU admission criteria and missing data, which reduced statistical power significantly. Second, vital signs were aggregated to averages, obscuring temporal dynamics and potentially masking clinically relevant patterns. Third, weak correlations between vital signs and culture ordering reflect the complex, multifactorial nature of clinical decision-making in infection assessment. Fourth, this analysis is limited to a single academic medical center, which may not generalize to other institutions with different clinical protocols. Finally, the logistic regression model lacks interpretability and cannot provide clinicians with actionable explanations for individual predictions.
+
+## Conclusion
+
+This study demonstrates a clinically viable proof-of-concept model for predicting culture ordering in ICU patients within the first 24 hours of admission. While logistic regression models showed limited discriminative ability (with a low AUROC), the random forest model substantially outperformed logistic regression methods with a higher AUROC and accuracy on cross-validation. This improvement highlights the non-linear relationships between vital signs and culture ordering decisions that machine learning approaches can capture.
+
+The random forest model achieves clinically meaningful performance for reactive sepsis care and antimicrobial stewardship programs. With high accuracy and improved calibration, this model demonstrates strong potential for deployment as a clinical decision support tool.
+
+## Future Directions
+
+To improve this work and maximize clinical impact, I propose: (a) implementing LSTM neural networks to capture continuous temporal data with overlapping relevant validation windows that preserve clinical timing; (b) increasing computational resources to expand the sample size and incorporate additional clinical variables (laboratory values, medication use, diagnoses); and (c) developing explainable machine learning approaches (SHAP values, attention mechanisms) to provide transparent, clinically actionable predictions. These enhancements will transform this preliminary proof-of-concept into a robust clinical decision support tool with immediate applicability to sepsis management and antimicrobial stewardship programs.
+
+## References
+
+1\. [Islam KR, Prithula J, Kumar J, Tan TL, Reaz MBI, Sumon MSI, et al. Machine learning-based early prediction of sepsis using electronic health records: A systematic review. J Clin Med. 2023;12: 5658.](http://paperpile.com/b/wkSzRD/MMut)
+
+2\. [Singer M, Deutschman CS, Seymour CW, Shankar-Hari M, Annane D, Bauer M, et al. The third international consensus definitions for sepsis and septic shock (sepsis-3). JAMA. 2016;315: 801--810.](http://paperpile.com/b/wkSzRD/iP8S)
+
+3\. [Vincent J-L, Moreno R, Takala J, Willatts S, Mendon�a AD, Bruining H, et al. The SOFA (Sepsis-related Organ Failure Assessment) score to describe organ dysfunction/failure. Intensive Care Med. 1996;22: 707--710.](http://paperpile.com/b/wkSzRD/g6Es)
+
+4\. [Munroe ES, Conlon A, Heath M, Bhanderi H, Gupta A, Horowitz JK, et al. Understanding antibiotic delays in patients with sepsis-induced hypotension at Michigan hospitals. Am J Respir Crit Care Med. 2025;211: A7078--A7078.](http://paperpile.com/b/wkSzRD/jZem)
+
+5\. [Mishra D, Mohapatra L, Bandyopadhyay D, Parida SK, Palei NN. From molecular mechanisms of the pathogenesis of sepsis to the novel healing biomolecules: Recent progressions in dealing with sepsis. J Biochem Mol Toxicol. 2025;39: e70522.](http://paperpile.com/b/wkSzRD/05lr)
+
+6\. [Pop-Began V, Păunescu V, Grigorean V, Pop-Began D, Popescu C. Molecular mechanisms in the pathogenesis of sepsis. J Med Life. 2014;7 Spec No. 2: 38--41.](http://paperpile.com/b/wkSzRD/Vzns)
+
+7\. [Li L, Rathnayake K, Walter S, Fullick M, Shetty A, Hudson P, et al. Blood culture ordering after sepsis alerts and subsequent patient outcomes: An electronic health record-based study. Stud Health Technol Inform. 2024;310: 314--318.](http://paperpile.com/b/wkSzRD/3uCc)
+
+8\. [Bollinger M, Frère N, Shapeton AD, Schary W, Kohl M, Kill C, et al. Does prehospital suspicion of sepsis shorten time to administration of antibiotics in the emergency department? A retrospective study in one university hospital. J Clin Med. 2023;12: 5639.](http://paperpile.com/b/wkSzRD/IGOY)
+
+9\. [McCurdy MT, Sweeney TE, Foster D, Reddy B Jr, Simpson SQ, for Sepsis Alliance and the Infection Management and Sepsis Collaborative Community (IMSCC) Panelists. Challenges facing developers of diagnostic tests for sepsis: A report from sepsis alliance and the infection management and Sepsis Collaborative Community. Crit Care Explor. 2025;7: e1293.](http://paperpile.com/b/wkSzRD/UHzY)
+
+10\. [Moor M, Rieck B, Horn M, Jutzeler CR, Borgwardt K. Early prediction of sepsis in the ICU using machine learning: A systematic review. Front Med (Lausanne). 2021;8: 607952.](http://paperpile.com/b/wkSzRD/hkc1)
+
+11\. [Varela-Patiño M, Lopez-Izquierdo R, Velayos-Garcia P, Alvarez-Manzanares J, Ramos-Sanchez C, Carbajosa-Rodriguez V, et al. Usefulness of infection biomarkers for diagnosing bacteremia in patients with a sepsis code in the emergency department. Infez Med. 2020;28: 29--36.](http://paperpile.com/b/wkSzRD/wen0)
